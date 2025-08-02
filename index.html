@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DeepCodeAI Chat avec animation</title>
+<style>
+  body {
+    margin:0; padding:0;
+    font-family: Arial, sans-serif;
+    background: #0A192F;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  header {
+    background: #112240;
+    padding: 1rem;
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+  main {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .message {
+    max-width: 70%;
+    padding: 10px 15px;
+    border-radius: 15px;
+    word-wrap: break-word;
+    position: relative;
+  }
+  .user {
+    background: #3E92CC;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+  }
+  .bot {
+    background: #112240;
+    border: 2px solid #3E92CC;
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+  }
+  form {
+    display: flex;
+    padding: 1rem;
+    background: #112240;
+  }
+  input[type="text"] {
+    flex: 1;
+    padding: 10px 15px;
+    font-size: 1rem;
+    border-radius: 12px;
+    border: none;
+    outline: none;
+  }
+  button {
+    margin-left: 10px;
+    background: #3E92CC;
+    border: none;
+    padding: 0 20px;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    color: white;
+  }
+  button:hover {
+    background: #268bd2;
+  }
+  .loader {
+    font-style: italic;
+    color: #70a1ff;
+    padding: 10px 15px;
+    border-radius: 15px;
+    background: #112240;
+    border: 2px solid #3E92CC;
+    align-self: flex-start;
+  }
+  .copy-btn {
+    position: absolute;
+    bottom: 4px;
+    right: 8px;
+    background: #3E92CC;
+    border: none;
+    padding: 3px 7px;
+    font-size: 0.8rem;
+    border-radius: 8px;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+    color: white;
+  }
+  .copy-btn:hover {
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+<header>🤖 DeepCodeAI Chat</header>
+<main id="chat"></main>
+<form id="chat-form">
+  <input type="text" id="user-input" placeholder="Pose ta question à l'IA..." autocomplete="off" required />
+  <button type="submit">Envoyer</button>
+</form>
+
+<script>
+  const chat = document.getElementById("chat");
+  const form = document.getElementById("chat-form");
+  const input = document.getElementById("user-input");
+
+  // Ajoute un message simple (user)
+  function addMessage(sender, text) {
+    const msg = document.createElement("div");
+    msg.classList.add("message", sender);
+    msg.textContent = text;
+    chat.appendChild(msg);
+    chat.scrollTop = chat.scrollHeight;
+    return msg;
+  }
+
+  // Ajoute un loader "L'IA réfléchit..."
+  function addLoader() {
+    const loader = document.createElement("div");
+    loader.classList.add("loader");
+    loader.textContent = "L'IA réfléchit...";
+    chat.appendChild(loader);
+    chat.scrollTop = chat.scrollHeight;
+    return loader;
+  }
+
+  // Animation lettre par lettre de la réponse
+  async function typeText(element, text) {
+    element.textContent = "";
+    for (let i = 0; i < text.length; i++) {
+      element.textContent += text.charAt(i);
+      chat.scrollTop = chat.scrollHeight;
+      await new Promise(r => setTimeout(r, 25)); // vitesse de frappe
+    }
+  }
+
+  // Ajoute un bouton copier à la fin du message bot
+  function addCopyButton(container, text) {
+    const btn = document.createElement("button");
+    btn.textContent = "Copier";
+    btn.classList.add("copy-btn");
+    btn.title = "Copier la réponse";
+
+    btn.onclick = () => {
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = "Copié !";
+        setTimeout(() => btn.textContent = "Copier", 1500);
+      });
+    };
+
+    container.appendChild(btn);
+  }
+
+  async function askAPI(prompt) {
+    const apiKey = "AIzaSyCrNhCxeCUeovJDGaCuAd__-GOfPGiz32M";
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`;
+
+    const body = {
+      contents: [
+        {
+          parts: [{ text: prompt }],
+          role: "user"
+        }
+      ]
+    };
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || "❌ Pas de réponse de l'IA.";
+    } catch (e) {
+      console.error(e);
+      return "❌ Erreur API.";
+    }
+  }
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const userMessage = input.value.trim();
+    if (!userMessage) return;
+
+    addMessage("user", userMessage);
+    input.value = "";
+
+    const loader = addLoader();
+    const response = await askAPI(userMessage);
+    chat.removeChild(loader);
+
+    const botMessage = addMessage("bot", "");
+    await typeText(botMessage, response);
+    addCopyButton(botMessage, response);
+  });
+</script>
+</body>
+</html>
