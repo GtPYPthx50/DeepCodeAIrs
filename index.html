@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>DeepCodeAI Chat avec animation</title>
+<title>DeepCodeAI Chat Hugging Face GPT-2</title>
 <style>
   body {
     margin:0; padding:0;
@@ -101,7 +101,7 @@
 </style>
 </head>
 <body>
-<header>🤖 DeepCodeAI Chat</header>
+<header>🤖 DeepCodeAI Chat Hugging Face GPT-2</header>
 <main id="chat"></main>
 <form id="chat-form">
   <input type="text" id="user-input" placeholder="Pose ta question à l'IA..." autocomplete="off" required />
@@ -113,7 +113,6 @@
   const form = document.getElementById("chat-form");
   const input = document.getElementById("user-input");
 
-  // Ajoute un message simple (user)
   function addMessage(sender, text) {
     const msg = document.createElement("div");
     msg.classList.add("message", sender);
@@ -123,7 +122,6 @@
     return msg;
   }
 
-  // Ajoute un loader "L'IA réfléchit..."
   function addLoader() {
     const loader = document.createElement("div");
     loader.classList.add("loader");
@@ -133,57 +131,38 @@
     return loader;
   }
 
-  // Animation lettre par lettre de la réponse
-  async function typeText(element, text) {
-    element.textContent = "";
-    for (let i = 0; i < text.length; i++) {
-      element.textContent += text.charAt(i);
-      chat.scrollTop = chat.scrollHeight;
-      await new Promise(r => setTimeout(r, 25)); // vitesse de frappe
-    }
-  }
-
-  // Ajoute un bouton copier à la fin du message bot
-  function addCopyButton(container, text) {
-    const btn = document.createElement("button");
-    btn.textContent = "Copier";
-    btn.classList.add("copy-btn");
-    btn.title = "Copier la réponse";
-
-    btn.onclick = () => {
-      navigator.clipboard.writeText(text).then(() => {
-        btn.textContent = "Copié !";
-        setTimeout(() => btn.textContent = "Copier", 1500);
-      });
-    };
-
-    container.appendChild(btn);
-  }
-
-  async function askAPI(prompt) {
-    const apiKey = "AIzaSyCrNhCxeCUeovJDGaCuAd__-GOfPGiz32M";
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`;
-
-    const body = {
-      contents: [
-        {
-          parts: [{ text: prompt }],
-          role: "user"
-        }
-      ]
-    };
+  async function generateResponse(prompt) {
+    const url = "https://api-inference.huggingface.co/models/gpt2";
 
     try {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
+        body: JSON.stringify({ inputs: prompt }),
       });
+
+      if (!res.ok) {
+        return "❌ Erreur API Hugging Face";
+      }
+
       const data = await res.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || "❌ Pas de réponse de l'IA.";
+
+      if (data.error) return "❌ " + data.error;
+
+      // data est un tableau d’objets avec generated_text
+      return data[0]?.generated_text || "❌ Pas de réponse";
     } catch (e) {
       console.error(e);
-      return "❌ Erreur API.";
+      return "❌ Erreur réseau";
+    }
+  }
+
+  async function typeText(element, text) {
+    element.textContent = "";
+    for (let i = 0; i < text.length; i++) {
+      element.textContent += text.charAt(i);
+      chat.scrollTop = chat.scrollHeight;
+      await new Promise(r => setTimeout(r, 25));
     }
   }
 
@@ -196,12 +175,11 @@
     input.value = "";
 
     const loader = addLoader();
-    const response = await askAPI(userMessage);
+    const response = await generateResponse(userMessage);
     chat.removeChild(loader);
 
     const botMessage = addMessage("bot", "");
     await typeText(botMessage, response);
-    addCopyButton(botMessage, response);
   });
 </script>
 </body>
